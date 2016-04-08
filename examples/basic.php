@@ -130,10 +130,10 @@
         // 0
         function($result) {
             if($result->getData('number') % 2) {
-                return 'even';
+                return 'odd';
             }
             else {
-                return 'odd';
+                return 'even';
             }
         },
         // 1
