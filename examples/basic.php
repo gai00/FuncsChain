@@ -1,10 +1,11 @@
 <?php
     // auto loading
     spl_autoload_register(function($class) {
-        include('../libs/' . $class . '.php');
+        include(__DIR__ . '/../libs/' . $class . '.php');
     });
     
     // example 1
+    echo("example 1\n");
     $funcsChain = new FuncsChain([
         function($result) {
             $result->tempData = [
@@ -21,9 +22,10 @@
     ]);
     // get result
     $result = $funcsChain->run();
-    var_dump($result->getData());
+    echo($result->getData('temp') . "\n");
     
     // example 2
+    echo("\nexample 2\n");
     $result = (new FuncsChain([
         function($result) {
             $result->setData([
@@ -31,17 +33,17 @@
             ]);
         }
     ]))->run();
-    var_dump($result->getData());
+    echo($result->getData(msg) . "\n");
     
     // example 3
+    echo("\nexample 3\n");
+    
     $result = new Result();
     $result->setData(['count' => 10]);
     $funcsChainLoop = new FuncsChain($result);
     $funcsChainLoop->addFuncs([
         // 0
         function($result) {
-            echo("example 3\n");
-            
             $count = $result->getData('count');
             echo("count: $count\n");
             
@@ -121,3 +123,32 @@
     $result = $funcsChain->run(['init', 'first', 'third', 'log']);
     // test will pass
     $result = $funcsChain->run(['init', 'test', 'second', 'log']);
+    
+    // example 5
+    echo("\nexample 5\n");
+    $funcsChain = new FuncsChain([
+        // 0
+        function($result) {
+            if($result->getData('number') % 2) {
+                return 'even';
+            }
+            else {
+                return 'odd';
+            }
+        },
+        // 1
+        function($result) {
+            echo($result->getData('output'));
+        },
+        
+        'odd' => function($result) {
+            $result->setData('output', "it's odd.\n");
+        },
+        'even' => function($result) {
+            $result->setData('output', "it's even.\n");
+        }
+    ]);
+    $result1 = new Result(['data' => ['number' => 10]]);
+    $result2 = new Result(['data' => ['number' => 11]]);
+    $funcsChain->run($result1);
+    $funcsChain->run($result2);
