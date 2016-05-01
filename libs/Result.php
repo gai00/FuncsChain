@@ -1,6 +1,6 @@
 <?php
     class Result {
-        public $data;               //結果物件的資料
+        public $data = [];               //結果物件的資料
         public $hasError = false;   //是否有發生程式上的錯誤
         public $hasMessage = false; //是否有發生行為上的錯誤
         public $errors = [];        //儲存程式上錯誤的訊息
