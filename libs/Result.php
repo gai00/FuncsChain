@@ -81,7 +81,7 @@
         //取得資料，支援取得全部資料，也取得特定key的資料
         public function getData($key = null) {
             if(func_num_args() > 0 && is_string($key)) {
-                if(array_key_exists($key, $this->data)) {
+                if(is_array($this->data) && array_key_exists($key, $this->data)) {
                     return $this->data[$key];
                 }
                 else {
