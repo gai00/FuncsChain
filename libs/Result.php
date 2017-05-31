@@ -1,25 +1,57 @@
 <?php
+    /*
+    version: 1.1.1 (20170522)
+        getData改為可回傳參考
+        可以用
+        $data = &$result->getData('abc');
+        來取得參考。
+        增加hasData, delData
+    version: 1.1.0 (20170414)
+        追加函數: 
+            void setCode(int number)
+            int getCode()
+        追加屬性: 
+            int code
+        修改函數: 
+            addFrom 多繼承code
+            toArray 多回傳code => int
+    */
     class Result {
-        public $data = [];               //結果物件的資料
+        const VERSION = '1.1.1';
+        
+        public $data;               //結果物件的資料
         public $hasError = false;   //是否有發生程式上的錯誤
         public $hasMessage = false; //是否有發生行為上的錯誤
         public $errors = [];        //儲存程式上錯誤的訊息
         public $messages = [];      //儲存行為上錯誤的訊息
+        public $code = 0; // int 錯誤訊息的號碼
         
         public function __construct($_data = []) {
             foreach($_data as $key => $val) {
                 switch($key) {
                     case 'errors':
-                        $this->appendError($error);
+                        $this->appendError($val);
                         break;
                     case 'messages':
-                        $this->appendMessage($message);
+                        $this->appendMessage($val);
                         break;
                     case 'data':
                         $this->setData($val);
                         break;
+                    case 'code':
+                        $this->setCode($val);
+                        break;
                 }
             }
+        }
+        
+        // 設定code
+        public function setCode($code = 0) {
+            $this->code = $code;
+        }
+        // 取得code
+        public function getCode() {
+            return $this->code;
         }
         
         //是否處理完畢
@@ -78,24 +110,41 @@
             }
         }
         
+        // 判斷是否有資料
+        public function hasData($key) {
+            return array_key_exists($key, $this->data);
+        }
+        
         //取得資料，支援取得全部資料，也取得特定key的資料
-        public function getData($key = null) {
+        // 傳參考會給notice...研究一下怎麼用
+        public function &getData($key = null) {
+            $ref = null;
             if(func_num_args() > 0 && is_string($key)) {
                 if(is_array($this->data) && array_key_exists($key, $this->data)) {
-                    return $this->data[$key];
+                    // return $this->data[$key];
+                    $ref = &$this->data[$key];
                 }
                 else {
-                    return;
+                    // return null;
                 }
             }
             else {
-                return $this->data;
+                // return $this->data;
+                $ref = &$this->data;
             }
+            
+            return $ref;
+        }
+        
+        // 移除資料
+        public function delData($key) {
+            unset($this->data[$key]);
         }
         
         //將此物件轉換成陣列
         public function toArray($hasError = false) {
             $result = [
+                'code' => $this->getCode(),
                 'isDone' => $this->isDone(),
                 'data' => $this->getData(),
                 'hasMessage' => $this->hasMessage,
@@ -108,6 +157,7 @@
         }
         
         public function addFrom(Result $from) {
+            $this->setCode($from->getCode());
             $this->setData($from->getData());
             $this->appendMessage($from->getMessages());
             $this->appendError($from->getErrors());

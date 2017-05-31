@@ -1,5 +1,19 @@
 <?php
     /*
+    change log: 
+        1.0.2
+            追加queue作為run期間的執行駐列
+            
+            追加hasFunc(key)來判斷是否有該函數
+            
+            追加addNextKey給funcsChain，作為執行期間(run)動態追加執行函數
+            addNextKey(nextKey)
+            addNextKey(nextKeys = [nextKey1, nextKey2]) 轉去給addNextKeys處理
+            addNextKeys(nextKeys = [nextKey1, nextKey2])
+            
+        1.0.1
+            追加回傳funcsChain作為額外執行的方法。
+        
     usage: {
         FuncsChain() => new FuncsChain
         FuncsChain([key1 => function1, key2 => function2]) -> new FuncsChain with key-pair functions
@@ -10,10 +24,20 @@
     }
     */
     class FuncsChain {
+        const VERSION = '1.0.2';
+        
         protected $resultClass = 'Result';
+        
+        // 綁定的result, 也可以在run的時候臨時定義, 不影響此變數
         protected $result;
+        // 此funcschain設定好的funcs
         protected $funcs;
+        // 此funcschain預定執行的keys
         protected $keys;
+        // 此funcschain執行期間用的funcsQueue
+        protected $queue = [];
+        // nextKeys, 在執行期間預計要執行的keys
+        protected $nextKeys = [];
         
         // init for constructor
         public function init() {
@@ -78,7 +102,7 @@
         // 設定指定的key所指的func
         // setFunc(string | int $key, Closure $func) -> null
         public function setFunc($key, $func) {
-            if((is_integer($key) || is_string($key)) && is_callable($func)) {
+            if((is_integer($key) || is_string($key)) && (is_callable($func)  || $func instanceof self)) {
                 $this->funcs[$key] = $func;
             }
         }
@@ -97,7 +121,7 @@
                 $this->addFuncs($func);
             }
             // 判斷是否為closure
-            elseif(is_callable($func)) {
+            elseif(is_callable($func) || $func instanceof self) {
                 array_push($this->funcs, $func);
             }
         }
@@ -123,6 +147,11 @@
             if(array_key_exists($key, $this->funcs)) {
                 return $this->funcs[$key];
             }
+        }
+        
+        // 判斷是否有該函數
+        public function hasFunc($key) {
+            return array_key_exists($key, $this->funcs);
         }
         
         // 取得已經定義好的函數陣列
@@ -174,6 +203,64 @@
             $this->setKeys();
         }
         
+        public function addNextKey($nextKey) {
+            if(is_array($nextKey)) {
+                $this->addNextKeys($nextKeys);
+            }
+            elseif(is_integer($nextKey) || is_string($nextKey))  {
+                if($this->hasFunc($nextKey)) {
+                    $this->nextKeys[] = $nextKey;
+                }
+            }
+        }
+        
+        public function addNextKeys($nextKeys = []) {
+            if(is_array($nextKeys)) {
+                foreach($nextKeys as $nextKey) {
+                    $this->addNextKey($nextKey);
+                }
+            }
+        }
+        
+        public function hasNextKey() {
+            return !!count($this->nextKeys);
+        }
+        
+        public function getNextKey() {
+            return array_shift($this->nextKeys);
+        }
+        
+        // 判斷是否有nextKeys，有的話查詢取得func後丟到傳參考參數
+        // 或是直接追加$func直接追加
+        public function pushNextFunc($func = null) {
+            if(is_callable($func)) {
+                array_push($this->queue, $func);
+            }
+            else {
+                while($this->hasNextKey()) {
+                    $key = $this->getNextKey();
+                    if($func = $this->getFunc($key)) {
+                        array_push($this->queue, $func);
+                    }
+                }
+            }
+        }
+        
+        // unshift版本
+        public function unshiftNextFunc($func = null) {
+            if(is_callable($func)) {
+                array_unshift($this->queue, $func);
+            }
+            else {
+                while($this->hasNextKey()) {
+                    $key = $this->getNextKey();
+                    if($func = $this->getFunc($key)) {
+                        array_unshift($this->queue, $func);
+                    }
+                }
+            }
+        }
+        
         /*
         執行
         usage: {
@@ -187,7 +274,7 @@
             $args = func_get_args();
             $count = func_num_args();
             $result = $this->getResult();
-            $funcs = [];
+            $funcs = &$this->queue;
             $keys = $this->keys;
             // 參數處理
             if($count > 0) {
@@ -205,7 +292,7 @@
             if(is_array($keys) && count($keys) > 0) {
                 foreach($keys as $key) {
                     if($func = $this->getFunc($key)) {
-                        $funcs[] = $func;
+                        array_push($funcs, $func);
                     }
                 }
             }
@@ -214,7 +301,7 @@
                 $funcsCount = count($this->funcs);
                 for($i = 0; $i < $funcsCount; $i += 1) {
                     if(array_key_exists($i, $this->funcs)) {
-                        $funcs[] = $this->funcs[$i];
+                        array_push($funcs, $this->funcs[$i]);
                     }
                     else {
                         break;
@@ -223,23 +310,40 @@
             }
             // 參數處理結束
             
+            // 處理next佇列
+            $this->pushNextFunc();
+            
+            // 開始迴圈執行
             for($i = 0; $i < count($funcs);) {
                 $func = array_shift($funcs);
                 
-                $funcResult = call_user_func_array($func, [&$result]);
+                // 假如取得的是funcsChain
+                if($func instanceof self) {
+                    $funcResult = call_user_func_array([$func, 'run'], [&$result]);
+                }
+                else {
+                    $funcResult = call_user_func_array($func, [&$result]);
+                }
                 
                 if(is_object($funcResult) && ($funcResult instanceof $this->resultClass)) {
                     $result->addFrom($funcResult);
                 }
                 
+                // isDone是false 或者 回傳值是false 就跳出
                 if(!$result->isDone() || $funcResult === false) {
                     break;
                 }
+                // 假如是funcschain的話就直接加到funcs前面
+                elseif($funcResult instanceof self) {
+                    array_unshift($funcs, $funcResult);
+                }
+                // 假如是字串或者數字就增加funcs
                 elseif(is_string($funcResult) || is_integer($funcResult)) {
                     if(is_callable($nextFunc = $this->getFunc($funcResult))) {
                         array_unshift($funcs, $nextFunc);
                     }
                 }
+                // 如果是陣列就整個取代
                 elseif(is_array($funcResult)) {
                     $nextFuncs = [];
                     foreach($funcResult as $nextKey) {
@@ -249,9 +353,13 @@
                             }
                         }
                     }
+                    
+                    // 參考到$this->queue, 用新的陣列覆蓋
                     $funcs = $nextFuncs;
                 }
                 
+                // 追加next資料
+                $this->pushNextFunc();
             }
             return $result;
         }

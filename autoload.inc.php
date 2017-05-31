@@ -1,4 +1,5 @@
 <?php
+{
     // for autoloading easily.
     spl_autoload_register(function($class) {
         $path = __DIR__ . "/libs/" . str_replace('\\', '/', $class) . '.php';
@@ -6,3 +7,4 @@
             include_once($path);
         }
     });
+}
