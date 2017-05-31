@@ -1,5 +1,14 @@
 <?php
     /*
+    version: 1.1.2 (20170531)
+        setDataRef($key, $ref)
+        可以設定參考值，但是不能設定整體資料像是setDataRef($ref)
+        必須使用$result->data = &$ref; 來設定。
+        
+        setDataDelimiter($delimiter = null)
+        設定分隔key用的符號，沒有設定的話就是不分隔，
+        有設定'.'的話就會變成 setData('a.b.c', 123) => data['a']['b']['c'] = 123
+        同理setDataRef, getData, hasData, delData
     version: 1.1.1 (20170522)
         getData改為可回傳參考
         可以用
@@ -17,7 +26,9 @@
             toArray 多回傳code => int
     */
     class Result {
-        const VERSION = '1.1.1';
+        const VERSION = '1.1.2';
+        
+        public $dataDelimiter = null;
         
         public $data;               //結果物件的資料
         public $hasError = false;   //是否有發生程式上的錯誤
@@ -34,6 +45,9 @@
                         break;
                     case 'messages':
                         $this->appendMessage($val);
+                        break;
+                    case 'dataDelimiter':
+                        $this->setDataDelimiter($val);
                         break;
                     case 'data':
                         $this->setData($val);
@@ -100,33 +114,97 @@
             return $this->messages;
         }
         
+        public function setDataDelimiter($delimiter = null) {
+            $this->dataDelimiter = $delimiter;
+        }
+        
         //設定資料，支援array也支援key value
         public function setData($data, $val = null) {
             if(func_num_args() > 1 && is_string($data)) {
-                $this->data[$data] = $val;
+                $target = &$this->getData($data, true);
+                $target = $val;
             }
             else {
                 $this->data = $data;
             }
         }
         
+        // 設定資料ref
+        public function setDataRef(string $keys, &$val = null) {
+            $delimiter = $this->dataDelimiter;
+            $target = &$this->data;
+            
+            if($delimiter) {
+                $keys = explode($delimiter, $keys);
+            }
+            else {
+                $keys = [$keys];
+            }
+            
+            for($key = array_shift($keys); count($keys) > 0; $key = array_shift($keys)) {
+                if(!is_array($target)) {
+                    $target = [];
+                }
+                if(!array_key_exists($key, $target) || !is_array($target[$key])) {
+                    $target[$key] = [];
+                }
+                $target = &$target[$key];
+            }
+            
+            $target[$key] = &$val;
+        }
+        
         // 判斷是否有資料
-        public function hasData($key) {
-            return array_key_exists($key, $this->data);
+        public function hasData($keys) {
+            $delimiter = $this->dataDelimiter;
+            $target = &$this->data;
+            if($delimiter) {
+                $keys = explode($delimiter, $keys);
+            }
+            else {
+                $keys = [$keys];
+            }
+            foreach($keys as $key) {
+                if(is_array($target) && array_key_exists($key, $target)) {
+                    $target = &$target[$key];
+                }
+                else {
+                    return false;
+                }
+            }
+            return true;
         }
         
         //取得資料，支援取得全部資料，也取得特定key的資料
         // 傳參考會給notice...研究一下怎麼用
-        public function &getData($key = null) {
+        public function &getData($keys = null, $force = false) {
             $ref = null;
-            if(func_num_args() > 0 && is_string($key)) {
-                if(is_array($this->data) && array_key_exists($key, $this->data)) {
-                    // return $this->data[$key];
-                    $ref = &$this->data[$key];
+            $delimiter = $this->dataDelimiter;
+            $target = &$this->data;
+            if(func_num_args() > 0 && is_string($keys)) {
+                if($delimiter) {
+                    $keys = explode($delimiter, $keys);
                 }
                 else {
-                    // return null;
+                    $keys = [$keys];
                 }
+                
+                foreach($keys as $key) {
+                    if($force) {
+                        if(!is_array($target)) {
+                            $target = [];
+                        }
+                        if(!array_key_exists($key, $target)) {
+                            $target[$key] = null;
+                        }
+                    }
+                    
+                    if(is_array($target) && array_key_exists($key, $target)) {
+                        $target = &$target[$key];
+                        $ref = &$target;
+                    }
+                }
+                
             }
             else {
                 // return $this->data;
@@ -137,8 +215,29 @@
         }
         
         // 移除資料
-        public function delData($key) {
-            unset($this->data[$key]);
+        public function delData($keys) {
+            $delimiter = $this->dataDelimiter;
+            $target = &$this->data;
+            
+            if($delimiter) {
+                $keys = explode($delimiter, $keys);
+            }
+            else {
+                $keys = [$keys];
+            }
+            
+            for($key = array_shift($keys); count($keys) > 0; $key = array_shift($keys)) {
+                if(is_array($target) && array_key_exists($key, $target)) {
+                    $target = &$target[$key];
+                }
+                else {
+                    break;
+                }
+            }
+            
+            if(is_array($target) && isset($target[$key])) {
+                unset($target[$key]);
+            }
         }
         
         //將此物件轉換成陣列
