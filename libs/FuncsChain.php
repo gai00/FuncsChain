@@ -1,6 +1,13 @@
 <?php
     /*
-    change log: 
+    change log:
+        1.0.3
+            追加push|unshift Next Key|Func
+            pushNextFunc($func) 跟addNextKey類似
+            unshiftNextFunc($func)則是將func加到queue最前面。
+            
+            追加 spliceNextKeys|Funcs
+            用來控制流程queue的函數
         1.0.2
             追加queue作為run期間的執行駐列
             
@@ -232,32 +239,79 @@
         
         // 判斷是否有nextKeys，有的話查詢取得func後丟到傳參考參數
         // 或是直接追加$func直接追加
+        public function pushNextKey($key = null) {
+            if(is_array($key)) {
+                $this->pushNextKeys($key);
+            }
+            elseif($func = $this->getFunc($key)) {
+                array_push($this->queue, $func);
+            }
+        }
+        public function pushNextKeys($keys = []) {
+            $this->spliceNextKeys(-1, 0, $keys);
+        }
         public function pushNextFunc($func = null) {
             if(is_callable($func)) {
                 array_push($this->queue, $func);
             }
+            elseif(is_array($func)) {
+                $this->pushNextFuncs($func);
+            }
             else {
                 while($this->hasNextKey()) {
                     $key = $this->getNextKey();
-                    if($func = $this->getFunc($key)) {
-                        array_push($this->queue, $func);
-                    }
+                    $this->pushNextKey($key);
                 }
             }
         }
+        public function pushNextFuncs($funcs = []) {
+            $this->spliceNextFuncs(-1, 0, $funcs);
+        }
         
         // unshift版本
+        public function unshiftNextKey($key = null) {
+            if(is_array($key)) {
+                $this->unshiftNextKeys($key);
+            }
+            elseif($func = $this->getFunc($key)) {
+                array_unshift($this->queue, $func);
+            }
+        }
+        public function unshiftNextKeys($keys = []) {
+            $this->spliceNextKeys(0, 0, $keys);
+        }
         public function unshiftNextFunc($func = null) {
             if(is_callable($func)) {
                 array_unshift($this->queue, $func);
             }
+            elseif(is_array($func)) {
+                $this->unshiftNextFuncs($func);
+            }
             else {
                 while($this->hasNextKey()) {
                     $key = $this->getNextKey();
-                    if($func = $this->getFunc($key)) {
-                        array_unshift($this->queue, $func);
-                    }
+                    $this->unshiftNextKey($key);
                 }
+            }
+        }
+        public function unshiftNextFuncs($funcs = []) {
+            $this->spliceNextFuncs($funcs);
+        }
+        
+        // splice版本
+        public function spliceNextKeys($offset, $length, $keys = []) {
+            $funcs = [];
+            foreach($keys as $key) {
+                if($func = $this->getFunc($key)) {
+                    array_push($funcs, $func);
+                }
+            }
+            
+            $this->spliceNextFuncs($offset, $length, $funcs);
+        }
+        public function spliceNextFuncs($offset, $length, $funcs = []) {
+            if(count($funcs) > 0) {
+                array_splice($this->queue, $offset, $length, $funcs);
             }
         }
         
