@@ -1,5 +1,7 @@
 <?php
     /*
+    version: 1.1.2b (20170602)
+        修改getData有dataDelimiter的狀況之下，找到上層資料的錯誤。
     version: 1.1.2 (20170531)
         setDataRef($key, $ref)
         可以設定參考值，但是不能設定整體資料像是setDataRef($ref)
@@ -178,6 +180,7 @@
         //取得資料，支援取得全部資料，也取得特定key的資料
         // 傳參考會給notice...研究一下怎麼用
         public function &getData($keys = null, $force = false) {
+            $null = null;
             $ref = null;
             $delimiter = $this->dataDelimiter;
             $target = &$this->data;
@@ -202,6 +205,10 @@
                     if(is_array($target) && array_key_exists($key, $target)) {
                         $target = &$target[$key];
                         $ref = &$target;
+                    }
+                    else {
+                        $ref = &$null;
+                        break;
                     }
                 }
                 
