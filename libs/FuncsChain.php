@@ -1,6 +1,8 @@
 <?php
     /*
     change log:
+        1.1.0b
+            修改getFuncsChain的bug
         1.1.0
             取得funcs chain的靜態函數
             有load跟get兩種, set則是給key跟funcsChain物件。
@@ -36,7 +38,7 @@
     }
     */
     class FuncsChain {
-        const VERSION = '1.1.0';
+        const VERSION = '1.1.0b';
         
         static protected $resultClass = 'Result';
         
@@ -83,8 +85,8 @@
         }
         
         public static function getFuncsChain($key) {
-            if(isset(self::$funcsChain[$key])) {
-                return self::$funcsChain[$key];
+            if(isset(self::$funcsChains[$key])) {
+                return self::$funcsChains[$key];
             }
         }
         
