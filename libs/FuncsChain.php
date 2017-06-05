@@ -1,6 +1,11 @@
 <?php
     /*
     change log:
+        1.1.0
+            取得funcs chain的靜態函數
+            有load跟get兩種, set則是給key跟funcsChain物件。
+            
+            setResultClass改為static
         1.0.3
             追加push|unshift Next Key|Func
             pushNextFunc($func) 跟addNextKey類似
@@ -31,9 +36,13 @@
     }
     */
     class FuncsChain {
-        const VERSION = '1.0.2';
+        const VERSION = '1.1.0';
         
-        protected $resultClass = 'Result';
+        static protected $resultClass = 'Result';
+        
+        static protected $loadDir = __DIR__ . '/FuncsChain';
+        // key => fc 的方式key-pair
+        static protected $funcsChains = [];
         
         // 綁定的result, 也可以在run的時候臨時定義, 不影響此變數
         protected $result;
@@ -46,12 +55,49 @@
         // nextKeys, 在執行期間預計要執行的keys
         protected $nextKeys = [];
         
+        // setResultClass(Result object|String 'Result') -> null
+        public static function setResultClass($resultClass) {
+            if(is_object($resultClass)) {
+                self::$resultClass = get_class($resultClass);
+            }
+            elseif(is_string($resultClass)) {
+                self::$resultClass = $resultClass;
+            }
+        }
+        
+        public static function setLoadDir($path) {
+            if(substr($path, 0, 1) != '/') {
+                $path = __DIR__ . '/' . $path;
+            }
+            self::$loadDir = $path;
+        }
+        
+        public static function loadFuncsChain($key) {
+            $path = self::$loadDir . '/' . $key . '.php';
+            
+            if(file_exists($path)) {
+                $fc = include($path);
+                self::setFuncsChain($key, $fc);
+                return $fc;
+            }
+        }
+        
+        public static function getFuncsChain($key) {
+            if(isset(self::$funcsChain[$key])) {
+                return self::$funcsChain[$key];
+            }
+        }
+        
+        public static function setFuncsChain($key, $fc) {
+            self::$funcsChains[$key] = $fc;
+        }
+        
         // init for constructor
         public function init() {
             $args = func_get_args();
             $count = func_num_args();
             if($count > 0) {
-                if(is_object($args[0]) && ($args[0] instanceof $this->resultClass)) {
+                if(is_object($args[0]) && ($args[0] instanceof self::$resultClass)) {
                     $this->setResult(array_shift($args));
                     $count -= 1;
                 }
@@ -78,30 +124,21 @@
             call_user_func_array([$this, 'init'], $argv);
         }
         
-        // setResultClass(Result object|String 'Result') -> null
-        public function setResultClass($resultClass) {
-            if(is_object($resultClass)) {
-                $this->resultClass = get_class($resultClass);
-            }
-            elseif(is_string($resultClass)) {
-                $this->resultClass = $resultClass;
-            }
-        }
         
         // setResult(Result $result) -> null
         public function setResult($result) {
-            if($result instanceof $this->resultClass) {
+            if($result instanceof self::$resultClass) {
                 $this->result = $result;
             }
         }
         
         // getResult() -> Result
         public function getResult() {
-            if(is_object($this->result) && ($this->result instanceof $this->resultClass)) {
+            if(is_object($this->result) && ($this->result instanceof self::$resultClass)) {
                 return $this->result;
             }
             else {
-                $this->result = new $this->resultClass();
+                $this->result = new self::$resultClass();
                 return $this->result;
             }
         }
@@ -332,7 +369,7 @@
             $keys = $this->keys;
             // 參數處理
             if($count > 0) {
-                if(is_object($args[0]) && ($args[0] instanceof $this->resultClass)) {
+                if(is_object($args[0]) && ($args[0] instanceof self::$resultClass)) {
                     $result = array_shift($args);
                     $count -= 1;
                 }
@@ -379,7 +416,7 @@
                     $funcResult = call_user_func_array($func, [&$result]);
                 }
                 
-                if(is_object($funcResult) && ($funcResult instanceof $this->resultClass)) {
+                if(is_object($funcResult) && ($funcResult instanceof self::$resultClass)) {
                     $result->addFrom($funcResult);
                 }
                 
