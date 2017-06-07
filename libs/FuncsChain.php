@@ -1,6 +1,9 @@
 <?php
     /*
     change log:
+        1.1.1
+            getFuncsChain增加autoLoaded參數
+            假如找不到會自動去load看看有沒有。
         1.1.0b
             修改getFuncsChain的bug
         1.1.0
@@ -38,7 +41,7 @@
     }
     */
     class FuncsChain {
-        const VERSION = '1.1.0b';
+        const VERSION = '1.1.1';
         
         static protected $resultClass = 'Result';
         
@@ -84,9 +87,12 @@
             }
         }
         
-        public static function getFuncsChain($key) {
+        public static function getFuncsChain($key, $autoLoaded = false) {
             if(isset(self::$funcsChains[$key])) {
                 return self::$funcsChains[$key];
+            }
+            elseif($autoLoaded) {
+                return self::loadFuncsChain($key);
             }
         }
         
