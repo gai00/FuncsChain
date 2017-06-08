@@ -1,31 +1,35 @@
 <?php
+{
     /*
-    version: 1.1.2b (20170602)
-        修改getData有dataDelimiter的狀況之下，找到上層資料的錯誤。
-    version: 1.1.2 (20170531)
-        setDataRef($key, $ref)
-        可以設定參考值，但是不能設定整體資料像是setDataRef($ref)
-        必須使用$result->data = &$ref; 來設定。
-        
-        setDataDelimiter($delimiter = null)
-        設定分隔key用的符號，沒有設定的話就是不分隔，
-        有設定'.'的話就會變成 setData('a.b.c', 123) => data['a']['b']['c'] = 123
-        同理setDataRef, getData, hasData, delData
-    version: 1.1.1 (20170522)
-        getData改為可回傳參考
-        可以用
-        $data = &$result->getData('abc');
-        來取得參考。
-        增加hasData, delData
-    version: 1.1.0 (20170414)
-        追加函數: 
-            void setCode(int number)
-            int getCode()
-        追加屬性: 
-            int code
-        修改函數: 
-            addFrom 多繼承code
-            toArray 多回傳code => int
+    change log: 
+        1.1.3
+            增加moveData($fromKey, $toKey)
+        1.1.2b
+            修改getData有dataDelimiter的狀況之下，找到上層資料的錯誤。
+        1.1.2
+            setDataRef($key, $ref)
+            可以設定參考值，但是不能設定整體資料像是setDataRef($ref)
+            必須使用$result->data = &$ref; 來設定。
+            
+            setDataDelimiter($delimiter = null)
+            設定分隔key用的符號，沒有設定的話就是不分隔，
+            有設定'.'的話就會變成 setData('a.b.c', 123) => data['a']['b']['c'] = 123
+            同理setDataRef, getData, hasData, delData
+        1.1.1
+            getData改為可回傳參考
+            可以用
+            $data = &$result->getData('abc');
+            來取得參考。
+            增加hasData, delData
+        1.1.0
+            追加函數: 
+                void setCode(int number)
+                int getCode()
+            追加屬性: 
+                int code
+            修改函數: 
+                addFrom 多繼承code
+                toArray 多回傳code => int
     */
     class Result {
         const VERSION = '1.1.2';
@@ -247,6 +251,13 @@
             }
         }
         
+        // 移動資料 這邊用參考的方式
+        public function moveData($fromKey, $toKey) {
+            $fromData = &$this->getData($fromKey);
+            $this->delData($fromKey);
+            $this->setDataRef($toKey, $fromData);
+        }
+        
         //將此物件轉換成陣列
         public function toArray($hasError = false) {
             $result = [
@@ -269,3 +280,4 @@
             $this->appendError($from->getErrors());
         }
     }
+}
