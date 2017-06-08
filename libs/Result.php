@@ -32,7 +32,7 @@
                 toArray 多回傳code => int
     */
     class Result {
-        const VERSION = '1.1.2';
+        const VERSION = '1.1.3';
         
         public $dataDelimiter = null;
         
