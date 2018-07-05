@@ -2,6 +2,8 @@
 {
     /*
     change log: 
+        1.1.4
+            修改count() 為 strlen，PHP7.2不支援count(string)
         1.1.3
             增加moveData($fromKey, $toKey)
         1.1.2b
@@ -86,7 +88,7 @@
                     $this->appendError($err);
                 }
             }
-            elseif($error && count($error . "") > 0) {
+            elseif($error && strlen($error . "") > 0) {
                 $this->hasError = true;
                 $this->errors[] = $error;
             }
@@ -104,7 +106,7 @@
                     $this->appendMessage($msg->getMessage());
                 }
             }
-            elseif($message && count($message . "") > 0) {
+            elseif($message && strlen($message . "") > 0) {
                 $this->hasMessage = true;
                 $this->messages[] = $message;
             }
